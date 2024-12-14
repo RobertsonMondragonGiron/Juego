@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de la Pelota</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <script>
+        // Configuración del canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Propiedades de la pelota
+        let ball = {
+            x: 50,
+            y: canvas.height - 30,
+            radius: 15,
+            speedX: 5,
+            speedY: 0,
+            gravity: 0.8,
+            jumpPower: -15,
+            isJumping: false
+        };
+
+        // Propiedades de los obstáculos
+        let obstacles = [];
+        const obstacleWidth = 20;
+        const obstacleHeight = 30;
+        let obstacleSpeed = 2;  // Velocidad de los obstáculos
+        const groundHeight = 0;  // Distancia desde el borde inferior para los obstáculos
+
+        // Puntaje
+        let score = 0;
+
+        // Control de teclas
+        let keys = {
+            left: false,
+            right: false,
+            up: false
+        };
+
+        // Detección de colisiones
+        function detectCollisions() {
+            for (let i = 0; i < obstacles.length; i++) {
+                let obstacle = obstacles[i];
+                if (ball.x + ball.radius > obstacle.x && ball.x - ball.radius < obstacle.x + obstacleWidth &&
+                    ball.y + ball.radius > obstacle.y && ball.y - ball.radius < obstacle.y + obstacleHeight) {
+                    // Colisión detectada
+                    resetGame();
+                }
+            }
+        }
+
+        // Crear obstáculos (se colocan en la parte inferior)
+        function createObstacle() {
+            const height = canvas.height - groundHeight - obstacleHeight;  // Colocarlos en la parte inferior
+            obstacles.push({ x: canvas.width, y: height, width: obstacleWidth, height: obstacleHeight });
+        }
+
+        // Mover obstáculos
+        function moveObstacles() {
+            for (let i = 0; i < obstacles.length; i++) {
+                obstacles[i].x -= obstacleSpeed;
+                if (obstacles[i].x + obstacleWidth < 0) {
+                    obstacles.splice(i, 1);
+                    score++;  // Aumentar el puntaje cuando el obstáculo se sale de la pantalla
+                    increaseSpeed();  // Incrementar la velocidad cada vez que el puntaje sea un múltiplo de 10
+                }
+            }
+        }
+
+        // Aumentar la velocidad de los obstáculos cada vez que se alcance un múltiplo de 10 puntos
+        function increaseSpeed() {
+            if (score % 10 === 0) {
+                obstacleSpeed += 0.5;  // Aumentar la velocidad en 0.5 cada vez que el puntaje sea múltiplo de 10
+            }
+        }
+
+        // Actualizar la pelota
+        function updateBall() {
+            // Mover la pelota con restricciones dentro del canvas
+            if (keys.left && ball.x - ball.radius > 0) ball.x -= ball.speedX;
+            if (keys.right && ball.x + ball.radius < canvas.width) ball.x += ball.speedX;
+            if (keys.up && !ball.isJumping) {
+                ball.speedY = ball.jumpPower;
+                ball.isJumping = true;
+            }
+
+            ball.speedY += ball.gravity; // Aceleración por gravedad
+            ball.y += ball.speedY;
+
+            // Colisiones con el suelo
+            if (ball.y + ball.radius >= canvas.height - groundHeight) {
+                ball.y = canvas.height - groundHeight - ball.radius; // Mantener la pelota sobre el suelo
+                ball.speedY = 0;
+                ball.isJumping = false;
+            }
+
+            // Asegurarse de que la pelota no salga del límite superior
+            if (ball.y - ball.radius <= 0) {
+                ball.y = ball.radius;
+                ball.speedY = 0;
+            }
+        }
+
+        // Dibujar elementos en el canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar el canvas
+
+            // Dibujar la pelota
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#FF6347";
+            ctx.fill();
+            ctx.closePath();
+
+            // Dibujar obstáculos
+            for (let i = 0; i < obstacles.length; i++) {
+                ctx.fillStyle = "#32CD32";
+                ctx.fillRect(obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+            }
+
+            // Mostrar el puntaje
+            ctx.font = '20px Arial';
+            ctx.fillStyle = '#000';
+            ctx.fillText('Puntaje: ' + score, 10, 30);  // Mostrar el puntaje en la esquina superior izquierda
+        }
+
+        // Actualizar el juego
+        function updateGame() {
+            updateBall();
+            moveObstacles();
+            detectCollisions();
+            draw();
+
+            // Llamar a la función de actualización en el siguiente fotograma
+            requestAnimationFrame(updateGame);
+        }
+
+        // Mover el jugador con las teclas
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "ArrowLeft") {
+                keys.left = true;
+            }
+            if (event.key === "ArrowRight") {
+                keys.right = true;
+            }
+            if (event.key === "ArrowUp") {
+                keys.up = true;
+            }
+        });
+
+        document.addEventListener('keyup', function(event) {
+            if (event.key === "ArrowLeft") {
+                keys.left = false;
+            }
+            if (event.key === "ArrowRight") {
+                keys.right = false;
+            }
+            if (event.key === "ArrowUp") {
+                keys.up = false;
+            }
+        });
+
+        // Reiniciar el juego
+        function resetGame() {
+            ball.x = 50;
+            ball.y = canvas.height - 30;
+            ball.speedY = 0;
+            ball.isJumping = false;
+            obstacles = [];
+            score = 0;  // Reiniciar el puntaje
+            obstacleSpeed = 2;  // Reiniciar la velocidad de los obstáculos
+        }
+
+        // Crear obstáculos a intervalos
+        setInterval(createObstacle, 2000); // Crear un nuevo obstáculo cada 2 segundos
+
+        // Iniciar el juego
+        updateGame();
+    </script>
+</body>
+</html>
+
+
+
+
